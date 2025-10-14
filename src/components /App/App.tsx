@@ -4,7 +4,7 @@ import SearchBox from "../SearchBox/SearchBox";
 import Pagination from "../Pagination/Pagination";
 import Modal from "../Modal/Modal";
 import NoteForm from "../NoteForm/NoteForm";
-import { Toaster } from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import {
   keepPreviousData,
   useMutation,
@@ -21,12 +21,18 @@ import {
 } from "../../services/noteService";
 import Loader from "../Loader/Loader";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
+import { useDebouncedCallback } from "use-debounce";
 
 export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useState<number>(1);
   const [search, setSearch] = useState<string>("");
-  const [perPage, setPerPage] = useState<number>(12);
+  const [perPage] = useState<number>(12);
+
+  const updateSearchQuery = useDebouncedCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value),
+    1000
+  );
 
   const queryClient = useQueryClient();
 
@@ -34,8 +40,12 @@ export default function App() {
     mutationFn: (id: string) => deleteNote(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast.success("Note deleted successfully!");
     },
-    onError: () => {},
+
+    onError: () => {
+      toast.error("Failed to delete note. Please try again.");
+    },
   });
 
   const { data, isLoading, isError, isSuccess } = useQuery({
@@ -50,8 +60,11 @@ export default function App() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       closeModal();
+      toast.success("Note created!");
     },
-    onError: () => {},
+    onError: () => {
+      toast.error("Failed to create note.");
+    },
   });
 
   const notes = data?.notes || [];
@@ -62,10 +75,33 @@ export default function App() {
 
   return (
     <>
-      <Toaster />
+      <Toaster
+        position="bottom-left"
+        toastOptions={{
+          style: {
+            background: "#fff",
+            color: "#333",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            fontSize: "14px",
+          },
+          success: {
+            iconTheme: {
+              primary: "#4ade80",
+              secondary: "#333",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#f87171",
+              secondary: "#333",
+            },
+          },
+        }}
+      />
       <div className={css.app}>
         <header className={css.toolbar}>
-          <SearchBox />
+          <SearchBox value={search} onChange={updateSearchQuery} />
           {isSuccess && totalPages > 1 && (
             <Pagination
               totalPages={totalPages}
