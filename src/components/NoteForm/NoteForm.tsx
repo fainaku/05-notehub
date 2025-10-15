@@ -1,8 +1,11 @@
 import css from "./NoteForm.module.css";
-import { ErrorMessage, Field, Form, Formik, type FormikHelpers } from "formik";
+import { ErrorMessage, Field, Form, Formik } from "formik";
 import { useId } from "react";
 import * as Yup from "yup";
 import type { NoteTag } from "../../types/note";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNote } from "../../services/noteService";
+import toast from "react-hot-toast";
 
 const NoteFormScema = Yup.object().shape({
   title: Yup.string()
@@ -29,19 +32,28 @@ const initialValues: FormValues = {
 
 interface NoteFormProps {
   onCancel: () => void;
-  onSubmit: (values: FormValues) => void;
 }
 
-export default function NoteForm({ onCancel, onSubmit }: NoteFormProps) {
+export default function NoteForm({ onCancel }: NoteFormProps) {
   const inputId = useId();
 
-  const handleSubmit = (
-    values: FormValues,
-    actions: FormikHelpers<FormValues>
-  ) => {
-    onSubmit(values);
-    actions.resetForm();
+  const handleSubmit = (values: FormValues) => {
+    createMutation.mutate(values);
   };
+
+  const queryClient = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: createNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast.success("Note created!");
+      onCancel();
+    },
+    onError: () => {
+      toast.error("Failed to create note.");
+    },
+  });
 
   return (
     <Formik
@@ -94,8 +106,12 @@ export default function NoteForm({ onCancel, onSubmit }: NoteFormProps) {
           <button onClick={onCancel} type="button" className={css.cancelButton}>
             Cancel
           </button>
-          <button type="submit" className={css.submitButton} disabled={false}>
-            Create note
+          <button
+            type="submit"
+            className={css.submitButton}
+            disabled={createMutation.isPending}
+          >
+            {createMutation.isPending ? "Creating..." : "Create note"}
           </button>
         </div>
       </Form>
